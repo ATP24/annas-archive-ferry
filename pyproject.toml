@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "annas-archive-ferry"
-version = "1.0.0"
+version = "1.1.0"
 description = "Automated retrieval, disambiguation, neural OCR, and streaming ferry engine for Anna's Archive"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -40,7 +40,9 @@ dependencies = [
     "requests>=2.28.0",
     "playwright>=1.40.0",
     "ddddocr>=1.4.7",
-    "PyMuPDF>=1.23.0"
+    "PyMuPDF>=1.23.0",
+    "beautifulsoup4>=4.11.0",
+    "urllib3>=1.26.0"
 ]
 
 [project.urls]
@@ -49,8 +51,11 @@ Repository = "https://github.com/ATP24/annas-archive-ferry.git"
 Issues = "https://github.com/ATP24/annas-archive-ferry/issues"
 
 [project.scripts]
-annas-ferry = "scripts.ferry_engine:main"
+annas-ferry = "annas_archive_ferry.engine:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["scripts*"]
+include = ["annas_archive_ferry*"]
+
+[tool.setuptools.package-data]
+annas_archive_ferry = ["*.json"]

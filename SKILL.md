@@ -15,31 +15,31 @@ description: >-
 
 ```mermaid
 graph TD
-    A[用户提出书籍诉求: 搜书/下书] --> B[ferry_engine.py search]
-    B --> C[输出版本清单, 确定目标 MD5]
-    C --> D[ferry_engine.py probe --md5 嗅探体积与直链]
-    D --> E{体积判断}
-    E -- 小型 <= 30MB --> F[直接后台静默下载]
-    E -- 大文献 > 30MB --> G[向用户汇报精确账单与预计耗时]
+    A[用户提出书籍诉求: 搜书/下书] --> B[search: 检索目标书籍与版本清单]
+    B --> C[解析书目、格式、大小与 32位 MD5 唯一标识]
+    C --> D[probe: 前置嗅探直链、真实体积与预计耗时]
+    D --> E{文献体积判断}
+    E -- 小型文献 <= 30MB --> F[自动启动后台单流下载]
+    E -- 巨型文献 > 30MB --> G[呈现透明账单与预计耗时, 待确认]
     G -->|用户确认挂机| F
-    F --> H[系统原生 curl 纯净单流下载, 零 Token 挂机]
-    H --> I[PyMuPDF 结构与页数健康核验]
-    I --> J{是否为 DjVu 需转 PDF?}
-    J -- 是 --> K[调用 ddjvu 单色无损转码]
-    J -- 否 --> L[校验成功, 交付可点击本地文件链接]
-    K --> L
+    F --> H[原生 curl 单流传输 + 2小时直链复用]
+    H --> I{格式判断}
+    I -- DjVu 格式 --> J[调用 ddjvu 进行无损转码为 PDF]
+    I -- PDF 格式 --> K[PyMuPDF 结构完整性与真实页数健康核验]
+    J --> K
+    K --> L[校验成功: 交付可直接点击的本地文件链接]
 ```
 
 ---
 
 ## 常用 CLI 命令
 
-脚本位于当前技能目录的 `scripts/ferry_engine.py`：
+支持直接通过技能目录脚本 `scripts/ferry_engine.py` 执行，或通过全局安装的 `annas-ferry` 运行：
 
 ### 1. 环境诊断与自愈 (Doctor)
 ```bash
 python scripts/ferry_engine.py doctor
-# 缺失依赖时自动修复:
+# 缺失依赖时自动安装修复:
 python scripts/ferry_engine.py doctor --fix
 ```
 
@@ -48,7 +48,7 @@ python scripts/ferry_engine.py doctor --fix
 # 基本检索（默认前 10 条）
 python scripts/ferry_engine.py search "书名或关键词" --limit 5
 
-# 指定格式检索
+# 指定格式检索 (pdf / djvu / epub)
 python scripts/ferry_engine.py search "史记" --ext pdf --limit 5
 
 # 输出 JSON 供程序自动化解析
@@ -79,12 +79,12 @@ python scripts/ferry_engine.py download --md5 <MD5码> --output "~/Downloads/Ann
 
 ---
 
-## Agent 交互铁律（严格遵守）
+## Agent 交互四大铁律（严格遵守）
 
 1. **铁律一：先探后下（必须执行 Probe 前置决策）**：
    对于任何下载需求，严禁直接盲目拉取。必须先调用 `probe` 嗅探文件真实大小。
    - 若文件 **<= 30 MB**：自动启动下载，两分钟内完成交付；
-   - 若文件 **> 30 MB**：必须向用户呈现实时账单（书名、精确 MB、通道限速约 50KB/s、预计耗时分钟数），获得知情后再启动挂机。
+   - 若文件 **> 30 MB**：必须向用户呈现实时账单（书名、精确 MB、通道限速约 50KB/s、预计耗时分钟数），获得知情确认后再启动挂机。
 2. **铁律二：零 Token 挂机（严禁高频 Polling）**：
    后台下载通过系统命令启动后，Agent 必须立即告知用户“已启动后台静默挂机”并**直接结束回合**！
    **严禁在循环中频繁调用状态轮询**。必须完全交由系统异步事件通知自动唤醒，挂机期间上下文 Token 消耗必须为 0！
