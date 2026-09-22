@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "annas-archive-ferry"
+version = "1.0.0"
+description = "Automated retrieval, disambiguation, neural OCR, and streaming ferry engine for Anna's Archive"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "ATP24" }
+]
+keywords = [
+    "annas-archive",
+    "shadow-library",
+    "book-search",
+    "pdf-downloader",
+    "agent-skill",
+    "ddddocr",
+    "antigravity-skill"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Utilities"
+]
+dependencies = [
+    "requests>=2.28.0",
+    "playwright>=1.40.0",
+    "ddddocr>=1.4.7",
+    "PyMuPDF>=1.23.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/ATP24/annas-archive-ferry"
+Repository = "https://github.com/ATP24/annas-archive-ferry.git"
+Issues = "https://github.com/ATP24/annas-archive-ferry/issues"
+
+[project.scripts]
+annas-ferry = "scripts.ferry_engine:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scripts*"]
