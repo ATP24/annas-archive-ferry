@@ -123,7 +123,7 @@ Here is the authentic end-to-end conversation flow when paired with Google Antig
 
 🤖 Agent:
    🎉 《Zhao Wanli Works Vol 1》has been delivered successfully!
-   - Local Path: file:///C:/Users/夏虫/Downloads/AnnasFerry/Zhao_Wanli_Works_Vol_1.pdf
+   - Local Path: file:///C:/Users/username/Downloads/AnnasFerry/Zhao_Wanli_Works_Vol_1.pdf
    - Verification: Passed (42.6 MB, 542 valid pages, document healthy)
    Click the link above to view your document.
 ```
