@@ -24,7 +24,11 @@ echo "[*] 使用 Python 解释器: $($PY_BIN --version)"
 
 echo "[*] 正在安装核心依赖库..."
 $PY_BIN -m pip install -r "$(dirname "$0")/requirements.txt" || \
-$PY_BIN -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r "$(dirname "$0")/requirements.txt"
+$PY_BIN -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r "$(dirname "$0")/requirements.txt" || \
+$PY_BIN -m pip install --break-system-packages -r "$(dirname "$0")/requirements.txt"
+
+# Ensure run.sh is executable
+chmod +x "$(dirname "$0")/run.sh" 2>/dev/null || true
 
 echo ""
 echo "[*] 正在执行环境健康自检..."

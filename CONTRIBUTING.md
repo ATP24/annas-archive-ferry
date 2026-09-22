@@ -23,7 +23,9 @@ Thank you for your interest in contributing to **Anna's Archive Ferry**! This gu
 
 3. **Install Dependencies**:
    ```bash
-   pip install -r scripts/requirements.txt
+   pip install -r requirements.txt
+   # Or install in editable development mode:
+   pip install -e .
    ```
 
 4. **Verify Environment**:

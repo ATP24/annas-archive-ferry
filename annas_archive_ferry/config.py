@@ -12,9 +12,13 @@ USER_CONFIG_DIR = Path.home() / ".annas_ferry"
 USER_CONFIG_FILE = USER_CONFIG_DIR / "config.json"
 CACHE_DIR = Path.home() / ".annas_ferry_cache"
 
-# Ensure user directories exist
-USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_user_dirs():
+    """Lazily and safely ensures user config and cache directories exist."""
+    try:
+        USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
 
 DEFAULT_CONFIG = {
     "primary_mirror": "https://zh.annas-archive.gl",
@@ -40,7 +44,7 @@ def get_default_config():
     """Returns a copy of the default configuration."""
     return dict(DEFAULT_CONFIG)
 
-def load_config(custom_path=None):
+def load_config(custom_path=None, expand_paths=True):
     """Loads configuration with fallback hierarchy:
     1. custom_path (if provided and exists)
     2. USER_CONFIG_FILE (~/.annas_ferry/config.json)
@@ -70,17 +74,18 @@ def load_config(custom_path=None):
             except Exception:
                 pass
 
-    # Normalize default_download_dir with expanded ~ and env vars
-    raw_dir = cfg.get("default_download_dir", "~/Downloads/AnnasFerry")
-    cfg["default_download_dir"] = str(Path(os.path.expandvars(os.path.expanduser(raw_dir))))
+    if expand_paths:
+        raw_dir = cfg.get("default_download_dir", "~/Downloads/AnnasFerry")
+        cfg["default_download_dir"] = str(Path(os.path.expandvars(os.path.expanduser(raw_dir))))
     return cfg
 
 def save_dynamic_config(updates):
     """Safely updates dynamic configuration into ~/.annas_ferry/config.json."""
-    current = load_config()
+    ensure_user_dirs()
+    # Load raw config without path expansion to preserve portable ~ paths
+    current = load_config(expand_paths=False)
     current.update(updates)
     try:
-        USER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(USER_CONFIG_FILE, "w", encoding="utf-8") as fp:
             json.dump(current, fp, ensure_ascii=False, indent=2)
         return True

@@ -23,6 +23,7 @@ urllib3.disable_warnings()
 from .config import (
     load_config,
     save_dynamic_config,
+    ensure_user_dirs,
     CACHE_DIR,
     USER_CONFIG_DIR
 )
@@ -36,6 +37,11 @@ if sys.platform == "win32":
         pass
 
 CONFIG = load_config()
+
+def log_info(msg, as_json=False):
+    """Prints informational logs. If as_json is True, redirects to stderr to keep stdout 100% JSON-parseable."""
+    target_stream = sys.stderr if as_json else sys.stdout
+    print(msg, file=target_stream, flush=True)
 
 def detect_proxy():
     """Smartly detects the best HTTP/HTTPS proxy to use."""
@@ -301,19 +307,19 @@ def search_books(query, ext=None, limit=10, as_json=False):
 
     mirror = get_active_mirror()
     results = []
-    print(f"[*] 正在检索: 「{query}」 (站点: {mirror})...", flush=True)
+    log_info(f"[*] 正在检索: 「{query}」 (站点: {mirror})...", as_json=as_json)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(**launch_args)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-        search_url = f"{mirror}/search?q={urllib.parse.quote(query)}"
-        if ext:
-            search_url += f"&ext={urllib.parse.quote(ext)}"
-
         try:
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            search_url = f"{mirror}/search?q={urllib.parse.quote(query)}"
+            if ext:
+                search_url += f"&ext={urllib.parse.quote(ext)}"
+
             page.goto(search_url, wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(2500)
             bypass_ddos_guard(page, ocr=ocr)
@@ -324,11 +330,13 @@ def search_books(query, ext=None, limit=10, as_json=False):
             page.wait_for_timeout(2000)
             html_content = page.content()
         except Exception as e:
-            print(f"[-] 访问异常 ({e})", flush=True)
-            browser.close()
+            log_info(f"[-] 访问异常 ({e})", as_json=as_json)
             return []
-
-        browser.close()
+        finally:
+            try:
+                browser.close()
+            except Exception:
+                pass
 
     soup = BeautifulSoup(html_content, "html.parser")
     seen_md5 = set()
@@ -388,7 +396,7 @@ def search_books(query, ext=None, limit=10, as_json=False):
     print("下载指令: python scripts/ferry_engine.py download --md5 <MD5值>\n")
     return results
 
-def resolve_direct_url(md5):
+def resolve_direct_url(md5, quiet=False):
     """Sniffs the direct CDN download URL and handles cookie pre-warming."""
     cache_file = CACHE_DIR / f"{md5}.url"
     import requests
@@ -404,7 +412,7 @@ def resolve_direct_url(md5):
                 if cached_url.startswith("http"):
                     r = requests.head(cached_url, proxies=proxies, timeout=5.0, verify=False)
                     if r.status_code in (200, 206, 302):
-                        print(f"[+] 命中缓存的有效直链: {cached_url[:70]}...", flush=True)
+                        log_info(f"[+] 命中缓存的有效直链: {cached_url[:70]}...", as_json=quiet)
                         return cached_url
         except Exception:
             pass
@@ -433,56 +441,62 @@ def resolve_direct_url(md5):
     cdn_url = None
     with sync_playwright() as p:
         browser = p.chromium.launch(**launch_args)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-
-        # Pre-warm homepage to acquire cookies and pass DDoS challenges cleanly
-        print(f"[*] 预热主站安全信标: {mirror} ...", flush=True)
         try:
-            page.goto(mirror, wait_until="domcontentloaded", timeout=35000)
-            bypass_ddos_guard(page, ocr=ocr)
-        except Exception:
-            pass
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
 
-        for route in slow_routes:
-            print(f"[*] 进入慢速免登录通道: {route} ...", flush=True)
+            # Pre-warm homepage to acquire cookies and pass DDoS challenges cleanly
+            log_info(f"[*] 预热主站安全信标: {mirror} ...", as_json=quiet)
             try:
-                page.goto(route, wait_until="domcontentloaded", timeout=45000)
+                page.goto(mirror, wait_until="domcontentloaded", timeout=35000)
                 bypass_ddos_guard(page, ocr=ocr)
+            except Exception:
+                pass
 
-                for _ in range(40):
-                    page.wait_for_timeout(2000)
-                    try:
-                        links = page.query_selector_all("a")
-                        for a in links:
-                            href = a.get_attribute("href") or ""
-                            text = a.inner_text().strip().lower()
+            for route in slow_routes:
+                log_info(f"[*] 进入慢速免登录通道: {route} ...", as_json=quiet)
+                try:
+                    page.goto(route, wait_until="domcontentloaded", timeout=45000)
+                    bypass_ddos_guard(page, ocr=ocr)
 
-                            # Handle relative URLs cleanly
-                            if href.startswith("/"):
-                                href = urllib.parse.urljoin(mirror, href)
+                    for _ in range(40):
+                        page.wait_for_timeout(2000)
+                        try:
+                            links = page.query_selector_all("a")
+                            for a in links:
+                                href = a.get_attribute("href") or ""
+                                text = a.inner_text().strip().lower()
 
-                            if ('wbsg' in href or 'duxiu_files' in href or href.endswith('.pdf') or 'fast_download' in href or '/dyn/download' in href) and href.startswith('http'):
-                                cdn_url = href
-                                break
-                            if 'download now' in text or '立刻下载' in text or text == '下载':
-                                if href.startswith('http'):
+                                # Handle relative URLs cleanly
+                                if href.startswith("/"):
+                                    href = urllib.parse.urljoin(mirror, href)
+
+                                if ('wbsg' in href or 'duxiu_files' in href or href.endswith('.pdf') or 'fast_download' in href or '/dyn/download' in href) and href.startswith('http'):
                                     cdn_url = href
                                     break
-                    except Exception:
-                        pass
+                                if 'download now' in text or '立刻下载' in text or text == '下载':
+                                    if href.startswith('http'):
+                                        cdn_url = href
+                                        break
+                        except Exception:
+                            pass
+                        if cdn_url:
+                            break
                     if cdn_url:
                         break
-                if cdn_url:
-                    break
+                except Exception:
+                    continue
+        finally:
+            try:
+                browser.close()
             except Exception:
-                continue
-        browser.close()
+                pass
 
     if cdn_url:
         try:
+            ensure_user_dirs()
             cache_file.write_text(cdn_url, encoding="utf-8")
         except Exception:
             pass
@@ -494,10 +508,10 @@ def probe_book(md5, as_json=False):
     proxy_server = detect_proxy()
     proxies = {"http": proxy_server, "https": proxy_server} if proxy_server else None
 
-    print(f"[*] 正在前置嗅探书籍直链与体积 (MD5: {md5})...", flush=True)
-    cdn_url = resolve_direct_url(md5)
+    log_info(f"[*] 正在前置嗅探书籍直链与体积 (MD5: {md5})...", as_json=as_json)
+    cdn_url = resolve_direct_url(md5, quiet=as_json)
     if not cdn_url:
-        print("[-] 直链嗅探失败，请检查网络代理。", flush=True)
+        log_info("[-] 直链嗅探失败，请检查网络代理。", as_json=as_json)
         return None
 
     try:
@@ -546,7 +560,7 @@ def probe_book(md5, as_json=False):
         print("=" * 65)
         return result
     except Exception as e:
-        print(f"[-] 头部探测异常: {e}", flush=True)
+        log_info(f"[-] 头部探测异常: {e}", as_json=as_json)
         return None
 
 def download_book(md5=None, direct_url=None, output_dir=None, custom_filename=None, quiet=False):
@@ -570,16 +584,19 @@ def download_book(md5=None, direct_url=None, output_dir=None, custom_filename=No
     if not orig_ext or len(orig_ext) > 5:
         orig_ext = ".pdf"
 
-    # Clean filename without double extensions
+    # Known document extensions for intelligent stripping and conversion
+    known_doc_exts = {".pdf", ".djvu", ".epub", ".mobi", ".azw3", ".fb2", ".cbr", ".cbz", ".txt"}
     if custom_filename:
-        clean_name = re.sub(r'[\\/*?:"<>|]', '_', custom_filename)
-        if clean_name.lower().endswith(orig_ext):
-            target_file = target_output_dir / clean_name
+        clean_input = re.sub(r'[\\/*?:"<>|]', '_', custom_filename).strip()
+        inp_p = Path(clean_input)
+        if inp_p.suffix.lower() in known_doc_exts:
+            base_name = inp_p.stem
         else:
-            target_file = target_output_dir / f"{clean_name}{orig_ext}"
+            base_name = clean_input
+        target_file = target_output_dir / f"{base_name}{orig_ext}"
     else:
         base_name = Path(url_path).stem or f"book_{md5}"
-        clean_name = re.sub(r'[\\/*?:"<>|]', '_', base_name)
+        clean_name = re.sub(r'[\\/*?:"<>|]', '_', base_name).strip()
         target_file = target_output_dir / f"{clean_name}{orig_ext}"
 
     # Check existing valid file
@@ -603,18 +620,19 @@ def download_book(md5=None, direct_url=None, output_dir=None, custom_filename=No
     proxies = {"http": proxy_server, "https": proxy_server} if proxy_server else None
     range_supported = False
     try:
-        r_test = requests.get(
+        with requests.get(
             cdn_url,
             headers={"User-Agent": "Mozilla/5.0", "Range": "bytes=0-10"},
             proxies=proxies,
             timeout=5.0,
             verify=False,
             stream=True
-        )
-        range_supported = (r_test.status_code == 206)
+        ) as r_test:
+            range_supported = (r_test.status_code == 206)
     except Exception:
         pass
 
+    download_success = False
     curl_bin = shutil.which("curl.exe") or shutil.which("curl")
     if curl_bin:
         cmd = [
@@ -638,39 +656,75 @@ def download_book(md5=None, direct_url=None, output_dir=None, custom_filename=No
             print(f"[*] 启动单流下载引擎 -> {target_file.name}...", flush=True)
 
         t0 = time.time()
-        res = subprocess.run(cmd)
-        elapsed = round(time.time() - t0, 1)
+        try:
+            res = subprocess.run(cmd)
+            elapsed = round(time.time() - t0, 1)
+            if res.returncode == 0 and target_file.exists() and target_file.stat().st_size > 0:
+                download_success = True
+                if not quiet:
+                    print(f"[+] 下载完成！耗时: {elapsed} 秒", flush=True)
+            else:
+                print(f"[-] 系统 curl 退出码: {res.returncode}，自动无缝切入内置流式引擎重试...", flush=True)
+        except Exception as e:
+            print(f"[-] 调用 curl 异常 ({e})，切入内置流式引擎重试...", flush=True)
 
-        if res.returncode != 0:
-            print(f"[-] 下载异常中断，curl 退出码: {res.returncode}", flush=True)
+    if not download_success:
+        if not quiet:
+            print("[*] 正在通过内置流式引擎下载...", flush=True)
+        if target_file.exists() and not range_supported:
+            try:
+                target_file.unlink()
+            except Exception:
+                pass
+
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
+        try:
+            with requests.get(cdn_url, headers=headers, stream=True, proxies=proxies, timeout=(15, 60), verify=False) as r:
+                if r.status_code not in (200, 206):
+                    print(f"[-] 服务器返回异常状态码: HTTP {r.status_code}", flush=True)
+                    return False
+                with open(target_file, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=512 * 1024):
+                        if chunk:
+                            f.write(chunk)
+            if target_file.exists() and target_file.stat().st_size > 0:
+                download_success = True
+        except Exception as e:
+            print(f"[-] 内置流式引擎下载失败: {e}", flush=True)
             return False
 
-        if not quiet:
-            print(f"[+] 下载完成！耗时: {elapsed} 秒", flush=True)
-    else:
-        print("[*] 系统 curl 未就绪，切入内置流式引擎...", flush=True)
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        with requests.get(cdn_url, headers=headers, stream=True, proxies=proxies, timeout=(15, 30), verify=False) as r:
-            with open(target_file, "wb") as f:
-                for chunk in r.iter_content(chunk_size=512 * 1024):
-                    if chunk:
-                        f.write(chunk)
-
-    if not target_file.exists():
+    if not download_success or not target_file.exists():
         return False
 
-    # True DjVu to PDF Transcoding implementation
+    # True DjVu to PDF Transcoding implementation with exception safety
     if target_file.suffix.lower() == ".djvu" and CONFIG.get("auto_convert_djvu", True):
         djvu_tool = find_djvu_tool()
         if djvu_tool:
             pdf_target = target_file.with_suffix(".pdf")
-            print(f"[*] 正在调用 ddjvu 进行高质量转码 -> {pdf_target.name} ...", flush=True)
-            conv_res = subprocess.run([djvu_tool, "-format=pdf", str(target_file), str(pdf_target)])
-            if conv_res.returncode == 0 and pdf_target.exists():
-                print(f"[+] DjVu 转码 PDF 成功！已生成: {pdf_target.name}", flush=True)
-                target_file = pdf_target
+            if not quiet:
+                print(f"[*] 正在调用 ddjvu 进行高质量转码 -> {pdf_target.name} ...", flush=True)
+            try:
+                conv_res = subprocess.run(
+                    [djvu_tool, "-format=pdf", str(target_file), str(pdf_target)],
+                    capture_output=True,
+                    text=True
+                )
+                if conv_res.returncode == 0 and pdf_target.exists() and pdf_target.stat().st_size > 0:
+                    if not quiet:
+                        print(f"[+] DjVu 转码 PDF 成功！已生成: {pdf_target.name}", flush=True)
+                    target_file = pdf_target
+                else:
+                    if pdf_target.exists() and pdf_target.stat().st_size == 0:
+                        try:
+                            pdf_target.unlink()
+                        except Exception:
+                            pass
+                    print(f"[!] ddjvu 转码未完成 (代码 {conv_res.returncode})，保留原始 .djvu 格式交付。", flush=True)
+            except Exception as e:
+                print(f"[!] 调用 ddjvu 异常 ({e})，保留原始 .djvu 格式交付。", flush=True)
         else:
-            print(f"[!] 提示: 未检测到 ddjvu 工具，保留原始 .djvu 格式交付。", flush=True)
+            if not quiet:
+                print(f"[!] 提示: 未检测到 ddjvu 工具，保留原始 .djvu 格式交付。", flush=True)
 
     size_mb = round(target_file.stat().st_size / (1024 * 1024), 2)
     if target_file.suffix.lower() == ".pdf":
