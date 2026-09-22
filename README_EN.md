@@ -5,15 +5,36 @@
 **Automated Retrieval, Smart Disambiguation, Offline Neural Captcha Solving, and Silent Streaming Ferry Engine for Tens of Millions of Books**
 
 [![CI](https://github.com/ATP24/annas-archive-ferry/actions/workflows/ci.yml/badge.svg)](https://github.com/ATP24/annas-archive-ferry/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/Release-v1.1.0-blue?style=flat-square)](https://github.com/ATP24/annas-archive-ferry/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Agent Ready](https://img.shields.io/badge/Agent%20Skill-Standard%20V1-blueviolet?style=flat-square)](SKILL.md)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](https://github.com/ATP24/annas-archive-ferry)
-[![Engine](https://img.shields.io/badge/Engine-Playwright%20%2B%20ddddocr-orange?style=flat-square)](https://github.com/ATP24/annas-archive-ferry)
+[![Stars](https://img.shields.io/github/stars/ATP24/annas-archive-ferry?style=flat-square&logo=github)](https://github.com/ATP24/annas-archive-ferry/stargazers)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 
-[中文说明文档](README.md) · [Agent Skill Specification (SKILL.md)](SKILL.md) · [Report an Issue](https://github.com/ATP24/annas-archive-ferry/issues)
+[中文说明文档](README.md) · [Agent Skill Specification (SKILL.md)](SKILL.md) · [Report an Issue](https://github.com/ATP24/annas-archive-ferry/issues) · [Changelog (Releases)](https://github.com/ATP24/annas-archive-ferry/releases)
 
 </div>
+
+---
+
+## 📑 Table of Contents
+
+- [📖 Overview](#-overview)
+- [🏗️ Architecture & Delivery Workflow](#️-architecture--delivery-workflow)
+- [✨ Feature Comparison Matrix](#-feature-comparison-matrix)
+- [🚀 Quick Start](#-quick-start)
+  - [Mode 1: As an Agent Skill (Recommended)](#mode-1-as-an-agent-skill-recommended)
+  - [Mode 2: Standard Python Command Line Tool (CLI)](#mode-2-standard-python-command-line-tool-cli)
+  - [Mode 3: Python SDK Programmatic Usage](#mode-3-python-sdk-programmatic-usage)
+  - [Mode 4: Interactive Scripts](#mode-4-interactive-scripts)
+- [⚙️ Configuration & Isolation](#️-configuration--isolation)
+- [🛡️ Agent SOP & Operational Iron Rules](#️-agent-sop--operational-iron-rules)
+- [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
+- [🤝 Contributing](#-contributing)
+- [⚖️ Legal Disclaimer](#️-legal-disclaimer)
+- [📜 License](#-license)
 
 ---
 
@@ -122,7 +143,39 @@ annas-ferry download --md5 <BOOK_MD5> --quiet
 
 ---
 
-### Mode 3: Interactive Scripts
+### Mode 3: Python SDK Programmatic Usage
+
+Integrate Anna's Archive Ferry directly into your Python scripts or custom agent pipelines:
+
+```python
+from annas_archive_ferry import search_books, probe_book, download_book, run_doctor
+
+# 1. Self-check environment
+if not run_doctor():
+    print("Dependencies missing!")
+
+# 2. Search books
+results = search_books("Origin of Species", ext="pdf", limit=3)
+if results:
+    target_md5 = results[0]["md5"]
+    print(f"Selected: {results[0]['title']} ({results[0]['size']})")
+
+    # 3. Upfront bandwidth and ETA probe
+    bill = probe_book(target_md5)
+    print(f"Size: {bill['size_mb']} MB, ETA: {bill['estimated_minutes']} mins")
+
+    # 4. Stream download and verify
+    file_path = download_book(
+        md5=target_md5,
+        output_dir="~/Downloads/Books",
+        custom_filename="Origin_of_Species"
+    )
+    print(f"Book delivered successfully: {file_path}")
+```
+
+---
+
+### Mode 4: Interactive Scripts
 
 - **Windows**: Double-click `一键配置环境.bat` to set up and `启动安娜书渡.bat` to launch.
 - **macOS / Linux**:
@@ -167,10 +220,56 @@ Runtime data and dynamic configuration updates are completely decoupled from pac
 
 ## 🛡️ Agent SOP & Operational Iron Rules
 
-1. **Strict Probe-First**: Always execute `probe` prior to calling `download`. If the file exceeds 30MB, provide the user with the exact size, rate limits, and estimated download duration.
-2. **Zero-Token Daemon**: Launch background downloads via non-blocking shell processes and yield immediately. Never poll `status` in a loop.
-3. **Clean Output**: Suppress raw HTML DOM responses, urllib3 warnings, and verbose progress streams from the model's context window.
-4. **RFC 7233 Compliance**: Only append data if `HTTP 206 Partial Content` is explicitly returned. If `HTTP 200 OK` is returned, overwrite safely.
+> [!IMPORTANT]
+> **Rule 1: Strict Probe-First**  
+> Always execute `probe` prior to calling `download`. If the file exceeds 30MB, provide the user with the exact size, rate limits, and estimated download duration.
+
+> [!TIP]
+> **Rule 2: Zero-Token Daemon**  
+> Launch background downloads via non-blocking shell processes and yield immediately. Never poll `status` in a loop.
+
+> [!NOTE]
+> **Rule 3: Clean Output**  
+> Suppress raw HTML DOM responses, urllib3 warnings, and verbose progress streams from the model's context window.
+
+> [!WARNING]
+> **Rule 4: RFC 7233 Compliance**  
+> Only append data if `HTTP 206 Partial Content` is explicitly returned. If `HTTP 200 OK` is returned, overwrite safely.
+
+---
+
+## ❓ Frequently Asked Questions (FAQ)
+
+<details>
+<summary><b>Q1: How do I install the ddjvu transcoding tool?</b></summary>
+
+`ddjvu` is part of the open-source `DjVuLibre` package, used to convert DjVu files to PDF losslessly:
+- **Windows**: Install [DjVuLibre for Windows](https://sourceforge.net/projects/djvulibre/) and add its folder to PATH;
+- **macOS**: Install via Homebrew: `brew install djvulibre`;
+- **Linux (Ubuntu/Debian)**: Install via APT: `sudo apt-get install djvulibre-bin`.
+
+*If `ddjvu` is not installed, the original `.djvu` file will be delivered safely without corruption.*
+</details>
+
+<details>
+<summary><b>Q2: Why do large file downloads take longer?</b></summary>
+
+Anna's Archive enforces a QoS bandwidth limit (around 40 ~ 70 KB/s) on free, public download routes.  
+This is precisely why Anna's Archive Ferry incorporates the **Probe-First Decision** and **Zero-Token Daemon** workflow, allowing large files to download in the background without tying up human attention or wasting AI context tokens.
+</details>
+
+<details>
+<summary><b>Q3: Do I need to solve DDoS-Guard captchas manually?</b></summary>
+
+**No.** Anna's Archive Ferry embeds an offline neural OCR classifier (`ddddocr`) that takes element screenshots and passes security challenges automatically in milliseconds.
+</details>
+
+<details>
+<summary><b>Q4: How do I configure a custom network proxy?</b></summary>
+
+By default, `"auto"` scans standard proxy ports (`7890`, `10808`, etc.) and system environment variables.  
+To specify a custom proxy, edit `~/.annas_ferry/config.json` and set `"proxy": "http://127.0.0.1:YOUR_PORT"`.
+</details>
 
 ---
 
@@ -180,6 +279,14 @@ Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for 
 
 ---
 
+## ⚖️ Legal Disclaimer
+
+> [!CAUTION]
+> This project is distributed under the MIT License for **academic research, educational purposes, digital humanities scholarship, and open-source architecture exploration only**.  
+> The project does not host, store, or distribute copyrighted book contents or digital media, nor does it operate mirror infrastructure. All downloads are initiated directly by the end-user. Users are solely responsible for adhering to applicable copyright laws and fair use regulations in their jurisdiction.
+
+---
+
 ## 📜 License
 
-Distributed under the [MIT License](LICENSE). Please use responsibly in accordance with applicable laws and fair use policies.
+Distributed under the [MIT License](LICENSE). Copyright (c) 2026 ATP24.
