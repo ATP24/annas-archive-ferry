@@ -22,13 +22,17 @@
 ## 📑 Table of Contents
 
 - [📖 Overview](#-overview)
+- [🤖 As an Agent Skill: Triggering, Interaction & Features](#-as-an-agent-skill-triggering-interaction--features)
+  - [1. 🎯 Natural Language Trigger Prompts](#1--natural-language-trigger-prompts)
+  - [2. 💬 Interactive Agent Dialog Showcase](#2--interactive-agent-dialog-showcase)
+  - [3. 🔌 Multi-Agent Platform Integration Guide](#3--multi-agent-platform-integration-guide)
+  - [4. 🧰 Skill Core Capabilities & Tool Mapping](#4--skill-core-capabilities--tool-mapping)
 - [🏗️ Architecture & Delivery Workflow](#️-architecture--delivery-workflow)
 - [✨ Feature Comparison Matrix](#-feature-comparison-matrix)
-- [🚀 Quick Start](#-quick-start)
-  - [Mode 1: As an Agent Skill (Recommended)](#mode-1-as-an-agent-skill-recommended)
-  - [Mode 2: Standard Python Command Line Tool (CLI)](#mode-2-standard-python-command-line-tool-cli)
-  - [Mode 3: Python SDK Programmatic Usage](#mode-3-python-sdk-programmatic-usage)
-  - [Mode 4: Interactive Scripts](#mode-4-interactive-scripts)
+- [🚀 Advanced Usage: CLI & Python SDK](#-advanced-usage-cli--python-sdk)
+  - [Mode 1: Standard Python Command Line Tool (CLI)](#mode-1-standard-python-command-line-tool-cli)
+  - [Mode 2: Python SDK Programmatic Usage](#mode-2-python-sdk-programmatic-usage)
+  - [Mode 3: Interactive Scripts](#mode-3-interactive-scripts)
 - [⚙️ Configuration & Isolation](#️-configuration--isolation)
 - [🛡️ Agent SOP & Operational Iron Rules](#️-agent-sop--operational-iron-rules)
 - [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
@@ -49,6 +53,110 @@ It systematically eliminates common bottlenecks encountered when retrieving larg
 - 🌊 **Native Single-Stream Engine**: Leverages native curl pipelines with strict RFC 7233 range validation (`HTTP 206` vs `HTTP 200`), preventing payload corruption.
 - 📄 **Lossless DjVu Transcoding**: Integrates `ddjvu` pipelines to automatically convert `.djvu` documents into high-quality PDFs, verified with `PyMuPDF`.
 - 🍃 **Zero-Token Daemon Workflow**: Prevents context token exhaustion in AI agents by relying on asynchronous event wakeups rather than polling loops.
+
+---
+
+## 🤖 As an Agent Skill: Triggering, Interaction & Features
+
+The primary identity of this repository is an **industrial-grade Agent Skill**.  
+Once mounted into your AI assistant or agent workflow, you never need to remember underlying terminal commands—interact directly using natural conversational language.
+
+### 1. 🎯 Natural Language Trigger Prompts
+
+You can trigger the skill in any chat interface by simply stating your literature intent:
+
+| Scenario | Natural Language Prompt Examples | Agent Background Execution |
+| :--- | :--- | :--- |
+| **Book Search & Disambiguation** | • *"Check what editions of 'Origin of Species' exist on Anna's Archive"*<br>• *"Search for a high-res PDF of 'The Art of Computer Programming'"*<br>• *"Look for an EPUB format of this book under 50MB"* | Invokes `search` engine, parses metadata, file formats, sizes, and returns structured comparison table with MD5s |
+| **Pre-Download Bandwidth Probe** | • *"Check how large Volume 1 is and how long it will take to download"*<br>• *"Probe the direct link and speed QoS for MD5: `7f9b8c...`"* | Invokes `probe` pre-flight sensor, inspects CDN headers, and outputs upfront ETA & rate bill |
+| **Automated Ferry & Transcoding** | • *"Download edition #1 and save it to my Downloads folder"*<br>• *"Directly download MD5: `a1b2c3d4...`"*<br>• *"If the downloaded file is a DjVu, convert it to PDF for me"* | Invokes `download` streaming pipeline, bypasses captchas, downloads silently, and converts DjVu to PDF |
+| **Diagnostics & Auto-Healing** | • *"Run health check on Anna's Archive Ferry and test mirror connectivity"*<br>• *"Fix missing dependencies for Anna's Archive Ferry automatically"* | Invokes `doctor --fix` to verify system browsers, proxies, and automatically installs missing packages |
+
+---
+
+### 2. 💬 Interactive Agent Dialog Showcase
+
+Here is the authentic end-to-end conversation flow when paired with Google Antigravity or Claude Code:
+
+```text
+👤 User: 
+   I need to study ancient Chinese bibliographies. Search Anna's Archive for 'Zhao Wanli Works' and download Volume 1.
+
+🤖 Agent (auto-activating annas-archive-ferry skill):
+   Querying primary locked mirror for: 'Zhao Wanli Works'...
+   Found 3 matching editions:
+   --------------------------------------------------------------------------------
+   [01] | PDF  | 42.6 MB  | Zhao Wanli Works Vol 1 Collation & Academic Papers (Zhonghua)
+        Details: Published 2008 | Modern Typeset | Clean 300 DPI scan
+        MD5: 7f9b8c3e12a4567890abcdef12345678
+   [02] | DJVU | 38.1 MB  | Zhao Wanli Works Vol 1 Facsimile Colophons Collection
+        Details: Raw manuscript scan | Monochrome high contrast
+        MD5: 8a7b6c5d43e210fedcba098765432101
+   [03] | PDF  | 152.0 MB | Zhao Wanli Works Complete 5-Volume Ultra-HD Edition
+        Details: Heavy file | Includes full-color rubbing plates
+        MD5: 9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d
+   --------------------------------------------------------------------------------
+   Recommended: Edition [01]. Probing direct CDN stream and bandwidth rate bill...
+
+   ================================================================================
+     【Anna's Archive Ferry】Pre-Flight Decision & Bandwidth Bill
+   ================================================================================
+     File Name: Zhao_Wanli_Works_Vol_1.pdf
+     Exact Size: 42.6 MB (44,668,928 bytes)
+     Range Support: bytes (Resumable)
+     Channel QoS: ~45 to 60 KB/s (Public Free Route)
+     Estimated Duration: ~13.8 minutes
+   ================================================================================
+   ⚠️ Notice: File exceeds 30MB threshold. Initiating zero-token background daemon. 
+   Confirm to start download?
+
+👤 User: 
+   Confirmed, please download.
+
+🤖 Agent:
+   Native streaming ferry initiated in background.
+   Context token consumption during download is exactly 0. You may proceed with other tasks.
+   Upon completion, PyMuPDF will verify document integrity and return the clickable file path.
+   (Agent ends turn immediately without wasteful polling loops...)
+
+   ~~~~~~~~~~~~~~~~ 13 minutes later (OS event wakeup triggers Agent) ~~~~~~~~~~~~~~~~
+
+🤖 Agent:
+   🎉 《Zhao Wanli Works Vol 1》has been delivered successfully!
+   - Local Path: file:///C:/Users/夏虫/Downloads/AnnasFerry/Zhao_Wanli_Works_Vol_1.pdf
+   - Verification: Passed (42.6 MB, 542 valid pages, document healthy)
+   Click the link above to view your document.
+```
+
+---
+
+### 3. 🔌 Multi-Agent Platform Integration Guide
+
+| Agent Platform | Installation / Mount Path | Triggering Behavior |
+| :--- | :--- | :--- |
+| **Google Antigravity** | Clone to `~/.gemini/config/skills/annas-archive-ferry` or workspace `.agents/skills/` | Automatic zero-config activation upon book/literature queries |
+| **Claude Code (Anthropic)** | Clone to `~/.claude/skills/annas-archive-ferry` | Automatically recognized and loaded on launch |
+| **Cursor / Windsurf / Cline** | Place in `.cursor/skills/` or project `.agents/skills/` | Prompt directly in Composer or invoke via `@annas-archive-ferry` |
+| **OpenAI Codex / Custom Agents** | Call `scripts/ferry_engine.py` with `--json` flag | Machine-readable pure JSON output compatible with any Function Calling schema |
+
+---
+
+### 4. 🧰 Skill Core Capabilities & Tool Mapping
+
+```text
+       ┌───────────────────────────────────────────────────────────┐
+       │             🚢 Anna's Archive Ferry (安娜书渡)             │
+       └─────────────────────────────┬─────────────────────────────┘
+                                     │
+     ┌──────────────────┬────────────┴───────┬──────────────────┐
+     ▼                  ▼                    ▼                  ▼
+【1. Search】          【2. Probe】          【3. Ferry】       【4. Self-Healing】
+  search              probe                download             doctor
+ • Disambiguation    • Sniff exact bytes  • Native single stream• Host browser probe
+ • Formats & sizes   • Bandwidth QoS bill • Neural captcha bypass• Proxy auto-match
+ • Structured MD5    • Calculate ETA mins • ddjvu lossless conv • One-click pip fix
+ • Pure JSON stream  • 2-hr direct cache  • PyMuPDF verification• Beacon failover
+```
 
 ---
 
@@ -87,27 +195,9 @@ graph TD
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Advanced Usage: CLI & Python SDK
 
-### Mode 1: As an Agent Skill (Recommended)
-
-This repository natively adheres to the **Agent Skill Specification**.
-
-1. Clone this repository into your Agent's skills directory:
-   ```bash
-   git clone https://github.com/ATP24/annas-archive-ferry.git "<path-to-your-skills>/annas-archive-ferry"
-   ```
-2. Install dependencies:
-   ```bash
-   cd annas-archive-ferry
-   pip install -r requirements.txt
-   ```
-3. Prompt your AI Agent (Antigravity, Claude Code, etc.):
-   > *"Search and download the PDF for 'Origin of Species' via Anna's Archive Ferry"*
-
----
-
-### Mode 2: Standard Python Command Line Tool (CLI)
+### Mode 1: Standard Python Command Line Tool (CLI)
 
 ```bash
 # 1. Clone repository
@@ -143,7 +233,7 @@ annas-ferry download --md5 <BOOK_MD5> --quiet
 
 ---
 
-### Mode 3: Python SDK Programmatic Usage
+### Mode 2: Python SDK Programmatic Usage
 
 Integrate Anna's Archive Ferry directly into your Python scripts or custom agent pipelines:
 
@@ -175,7 +265,7 @@ if results:
 
 ---
 
-### Mode 4: Interactive Scripts
+### Mode 3: Interactive Scripts
 
 - **Windows**: Double-click `一键配置环境.bat` to set up and `启动安娜书渡.bat` to launch.
 - **macOS / Linux**:
