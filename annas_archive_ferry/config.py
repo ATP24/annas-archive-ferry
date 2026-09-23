@@ -34,9 +34,7 @@ DEFAULT_CONFIG = {
     "heavy_threshold_mb": 30,
     "proxy": "auto",
     "default_download_dir": "~/Downloads/AnnasFerry",
-    "default_format": "pdf",
     "auto_convert_djvu": True,
-    "timeout_seconds": 180,
     "headless": True
 }
 
@@ -48,8 +46,7 @@ def load_config(custom_path=None, expand_paths=True):
     """Loads configuration with fallback hierarchy:
     1. custom_path (if provided and exists)
     2. USER_CONFIG_FILE (~/.annas_ferry/config.json)
-    3. Local config.json in project or scripts folder
-    4. DEFAULT_CONFIG
+    3. DEFAULT_CONFIG
     """
     cfg = get_default_config()
 
@@ -57,11 +54,6 @@ def load_config(custom_path=None, expand_paths=True):
     if custom_path:
         candidate_files.append(Path(custom_path))
     candidate_files.append(USER_CONFIG_FILE)
-
-    # Local project fallback for backward compatibility
-    pkg_dir = Path(__file__).resolve().parent
-    candidate_files.append(pkg_dir.parent / "scripts" / "config.json")
-    candidate_files.append(pkg_dir.parent / "config.json")
 
     for f in candidate_files:
         if f.exists() and f.is_file():

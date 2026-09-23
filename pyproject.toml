@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "annas-archive-ferry"
 version = "1.1.0"
-description = "Automated retrieval, disambiguation, neural OCR, and streaming ferry engine for Anna's Archive"
+description = "Agent skill and CLI for searching Anna's Archive and verifying local downloads"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
     { name = "ATP24" }
@@ -22,13 +22,12 @@ keywords = [
     "antigravity-skill"
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -42,7 +41,6 @@ dependencies = [
     "ddddocr>=1.4.7",
     "PyMuPDF>=1.23.0",
     "beautifulsoup4>=4.11.0",
-    "urllib3>=1.26.0"
 ]
 
 [project.urls]
@@ -56,6 +54,3 @@ annas-ferry = "annas_archive_ferry.engine:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["annas_archive_ferry*"]
-
-[tool.setuptools.package-data]
-annas_archive_ferry = ["*.json"]

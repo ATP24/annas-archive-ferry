@@ -13,12 +13,12 @@ import json
 import time
 import re
 import argparse
+from contextlib import redirect_stdout
 import subprocess
 import shutil
 import urllib.parse
+import requests
 from pathlib import Path
-import urllib3
-urllib3.disable_warnings()
 
 from .config import (
     load_config,
@@ -42,6 +42,13 @@ def log_info(msg, as_json=False):
     """Prints informational logs. If as_json is True, redirects to stderr to keep stdout 100% JSON-parseable."""
     target_stream = sys.stderr if as_json else sys.stdout
     print(msg, file=target_stream, flush=True)
+
+def format_remaining(seconds):
+    if seconds is None:
+        return ""
+    if seconds < 120:
+        return f"，约剩 {max(1, round(seconds))} 秒"
+    return f"，约剩 {seconds / 60:.1f} 分钟"
 
 def detect_proxy():
     """Smartly detects the best HTTP/HTTPS proxy to use."""
@@ -125,10 +132,10 @@ def discover_beacon_mirrors():
     proxies = {"http": proxy, "https": proxy} if proxy else None
     beacons = CONFIG.get("beacons", ["https://shadowlibraries.github.io/DirectDownloads/AnnasArchive/"])
 
-    print("[*] 正在从官方信标获取存活镜像...", flush=True)
+    print("[*] 正在从外部镜像目录获取存活镜像...", flush=True)
     for beacon in beacons:
         try:
-            r = requests.get(beacon, proxies=proxies, timeout=6.0, verify=False)
+            r = requests.get(beacon, proxies=proxies, timeout=6.0, verify=True)
             if r.status_code == 200:
                 found = re.findall(r"https://annas-archive\.[a-z]{2,4}", r.text)
                 if found:
@@ -152,7 +159,7 @@ def get_active_mirror():
     proxy = detect_proxy()
     proxies = {"http": proxy, "https": proxy} if proxy else None
     try:
-        r = requests.head(mirror, proxies=proxies, timeout=4.0, verify=False, allow_redirects=True)
+        r = requests.head(mirror, proxies=proxies, timeout=4.0, allow_redirects=True)
         if r.status_code in (200, 301, 302, 403):
             return mirror
     except Exception:
@@ -162,7 +169,7 @@ def get_active_mirror():
     fallbacks = CONFIG.get("official_fallbacks", [])
     for fb in fallbacks:
         try:
-            r = requests.head(fb, proxies=proxies, timeout=4.0, verify=False, allow_redirects=True)
+            r = requests.head(fb, proxies=proxies, timeout=4.0, allow_redirects=True)
             if r.status_code in (200, 301, 302, 403):
                 print(f"[!] 主站响应受阻，自动故障转移至可用备份镜像: {fb}", flush=True)
                 save_dynamic_config({"primary_mirror": fb})
@@ -259,15 +266,9 @@ def run_doctor(fix=False):
 
     djvu_tool = find_djvu_tool()
     if djvu_tool:
-        print(f"  [+] DjVu 无损转码引擎   -> 已就绪 ({djvu_tool})")
+        print(f"  [+] DjVu 转码工具   -> 已就绪 ({djvu_tool})")
     else:
-        print(f"  [?] DjVu 无损转码引擎   -> 未就绪 (仅影响 .djvu 格式转 PDF)")
-
-    curl_bin = shutil.which("curl.exe") or shutil.which("curl")
-    if curl_bin:
-        print(f"  [+] 系统原生下载引擎     -> 已就绪 ({curl_bin})")
-    else:
-        print(f"  [-] 系统原生下载引擎     -> 未找到 curl (将使用内置流式下载)")
+        print(f"  [?] DjVu 转码工具   -> 未就绪 (仅影响 .djvu 格式转 PDF)")
 
     print("-" * 65)
     mirror = get_active_mirror()
@@ -276,7 +277,7 @@ def run_doctor(fix=False):
     proxies = {"http": proxy, "https": proxy} if proxy else None
     try:
         t0 = time.time()
-        r = requests.head(mirror, proxies=proxies, timeout=5.0, verify=False, allow_redirects=True)
+        r = requests.head(mirror, proxies=proxies, timeout=5.0, allow_redirects=True)
         ms = int((time.time() - t0) * 1000)
         print(f"  [+] 主站响应正常 [{r.status_code}]，延迟: {ms} ms")
     except Exception as e:
@@ -331,7 +332,7 @@ def search_books(query, ext=None, limit=10, as_json=False):
             html_content = page.content()
         except Exception as e:
             log_info(f"[-] 访问异常 ({e})", as_json=as_json)
-            return []
+            raise RuntimeError(f"检索失败: {e}") from e
         finally:
             try:
                 browser.close()
@@ -376,7 +377,6 @@ def search_books(query, ext=None, limit=10, as_json=False):
             break
 
     if as_json:
-        print(json.dumps(results, ensure_ascii=False, indent=2))
         return results
 
     if not results:
@@ -398,6 +398,8 @@ def search_books(query, ext=None, limit=10, as_json=False):
 
 def resolve_direct_url(md5, quiet=False):
     """Sniffs the direct CDN download URL and handles cookie pre-warming."""
+    from .downloader import validate_md5, validate_public_https
+    validate_md5(md5)
     cache_file = CACHE_DIR / f"{md5}.url"
     import requests
     proxy_server = detect_proxy()
@@ -409,8 +411,9 @@ def resolve_direct_url(md5, quiet=False):
             mtime = cache_file.stat().st_mtime
             if (time.time() - mtime) < 7200:  # 2 hours
                 cached_url = cache_file.read_text(encoding="utf-8").strip()
-                if cached_url.startswith("http"):
-                    r = requests.head(cached_url, proxies=proxies, timeout=5.0, verify=False)
+                if cached_url.startswith("https://"):
+                    validate_public_https(cached_url)
+                    r = requests.head(cached_url, proxies=proxies, timeout=5.0, verify=True)
                     if r.status_code in (200, 206, 302):
                         log_info(f"[+] 命中缓存的有效直链: {cached_url[:70]}...", as_json=quiet)
                         return cached_url
@@ -495,6 +498,7 @@ def resolve_direct_url(md5, quiet=False):
                 pass
 
     if cdn_url:
+        validate_public_https(cdn_url)
         try:
             ensure_user_dirs()
             cache_file.write_text(cdn_url, encoding="utf-8")
@@ -503,11 +507,13 @@ def resolve_direct_url(md5, quiet=False):
     return cdn_url
 
 def probe_book(md5, as_json=False):
-    """Probes file metadata, rate limits, and estimated download duration upfront."""
+    """Probes file metadata, headers and estimated download duration upfront."""
     import requests
     proxy_server = detect_proxy()
     proxies = {"http": proxy_server, "https": proxy_server} if proxy_server else None
 
+    from .downloader import validate_md5, validate_public_https
+    validate_md5(md5)
     log_info(f"[*] 正在前置嗅探书籍直链与体积 (MD5: {md5})...", as_json=as_json)
     cdn_url = resolve_direct_url(md5, quiet=as_json)
     if not cdn_url:
@@ -515,7 +521,10 @@ def probe_book(md5, as_json=False):
         return None
 
     try:
-        r = requests.head(cdn_url, proxies=proxies, timeout=8.0, verify=False, allow_redirects=True)
+        validate_public_https(cdn_url)
+        r = requests.head(cdn_url, proxies=proxies, timeout=8.0, allow_redirects=True)
+        validate_public_https(r.url)
+        r.raise_for_status()
         size_bytes = int(r.headers.get("content-length", 0))
         size_mb = round(size_bytes / (1024 * 1024), 2)
         accept_ranges = r.headers.get("accept-ranges", "none").strip().lower()
@@ -523,40 +532,37 @@ def probe_book(md5, as_json=False):
         url_path = urllib.parse.unquote(urllib.parse.urlparse(cdn_url).path)
         filename = Path(url_path).name or f"book_{md5}.pdf"
 
-        # Rate baseline: 55 KB/s
-        est_seconds = int(size_bytes / (55 * 1024)) if size_bytes > 0 else 0
-        est_minutes = round(est_seconds / 60, 1)
-
         heavy_threshold = CONFIG.get("heavy_threshold_mb", 30)
         is_heavy = size_mb > heavy_threshold
 
         result = {
             "md5": md5,
             "filename": filename,
-            "size_bytes": size_bytes,
-            "size_mb": size_mb,
+            "size_bytes": size_bytes if size_bytes else None,
+            "size_mb": size_mb if size_bytes else None,
             "is_heavy": is_heavy,
             "accept_ranges": accept_ranges,
-            "estimated_minutes": est_minutes,
+            "estimated_minutes": None,
             "direct_url": cdn_url
         }
 
         if as_json:
-            print(json.dumps(result, ensure_ascii=False, indent=2))
             return result
 
         print("=" * 65)
         print("  【安娜书渡】前置决策与体积账单")
         print("=" * 65)
         print(f"  书名文件: {filename}")
-        print(f"  精确体积: {size_mb} MB ({size_bytes:,} 字节)")
+        print(f"  文件大小: {size_mb} MB ({size_bytes:,} 字节)" if size_bytes else "  文件大小: 未知")
         print(f"  分块支持: {accept_ranges}")
-        print(f"  通道限速: 约 40 ~ 70 KB/s (慢速通道 QoS)")
-        print(f"  预计耗时: 约 {est_minutes} 分钟")
+        print("  实际速度: 取决于下载服务器和网络")
+        print("  预计耗时: 下载开始后按实测速率更新")
+        if not size_bytes:
+            print("  [!] 服务器未提供文件大小；无法可靠估计耗时。")
         if is_heavy:
-            print(f"  [!] 提示: 该文件体积超过阈值 ({heavy_threshold} MB)，属于大文献，建议后台静默挂机。")
+            print(f"  [!] 提示: 该文件体积超过阈值 ({heavy_threshold} MB)，属于大文献，请确认后下载。")
         else:
-            print(f"  [+] 提示: 小型文献 (<= {heavy_threshold} MB)，可立即完成下载。")
+            print(f"  [+] 提示: 小型文献 (<= {heavy_threshold} MB)，可开始下载。")
         print("=" * 65)
         return result
     except Exception as e:
@@ -564,183 +570,49 @@ def probe_book(md5, as_json=False):
         return None
 
 def download_book(md5=None, direct_url=None, output_dir=None, custom_filename=None, quiet=False):
-    """Downloads book using native curl or requests, with strict protocol validation and DjVu transcoding."""
+    """Download and verify a document before publishing it in the output folder."""
+    from .downloader import download, validate_md5
+
     if not md5 and not direct_url:
-        print("[-] 错误: 必须提供 MD5 或直链")
-        return False
-
-    raw_dir = output_dir or CONFIG.get("default_download_dir") or (Path.home() / "Downloads" / "AnnasFerry")
-    target_output_dir = Path(os.path.expandvars(os.path.expanduser(str(raw_dir))))
-    target_output_dir.mkdir(parents=True, exist_ok=True)
-    proxy_server = detect_proxy()
-
-    cdn_url = direct_url or resolve_direct_url(md5)
+        raise ValueError("必须提供 MD5 或下载地址")
+    validate_md5(md5)
+    cdn_url = direct_url or resolve_direct_url(md5, quiet=quiet)
     if not cdn_url:
-        print("[-] 获取下载直链失败。")
-        return False
-
-    url_path = urllib.parse.unquote(urllib.parse.urlparse(cdn_url).path)
-    orig_ext = Path(url_path).suffix.lower()
-    if not orig_ext or len(orig_ext) > 5:
-        orig_ext = ".pdf"
-
-    # Known document extensions for intelligent stripping and conversion
-    known_doc_exts = {".pdf", ".djvu", ".epub", ".mobi", ".azw3", ".fb2", ".cbr", ".cbz", ".txt"}
-    if custom_filename:
-        clean_input = re.sub(r'[\\/*?:"<>|]', '_', custom_filename).strip()
-        inp_p = Path(clean_input)
-        if inp_p.suffix.lower() in known_doc_exts:
-            base_name = inp_p.stem
-        else:
-            base_name = clean_input
-        target_file = target_output_dir / f"{base_name}{orig_ext}"
-    else:
-        base_name = Path(url_path).stem or f"book_{md5}"
-        clean_name = re.sub(r'[\\/*?:"<>|]', '_', base_name).strip()
-        target_file = target_output_dir / f"{clean_name}{orig_ext}"
-
-    # Check existing valid file
-    if target_file.exists() and target_file.stat().st_size > 1024 * 50:
-        try:
-            if target_file.suffix.lower() == ".pdf":
-                import fitz
-                doc = fitz.open(str(target_file))
-                if len(doc) > 0:
-                    print(f"[+] 本地已存在完整有效文件: {target_file.name} ({len(doc)} 页)", flush=True)
-                    doc.close()
-                    return str(target_file)
-                doc.close()
-            else:
-                print(f"[+] 本地已存在完整有效文件: {target_file.name}", flush=True)
-                return str(target_file)
-        except Exception:
-            pass
-
-    import requests
-    proxies = {"http": proxy_server, "https": proxy_server} if proxy_server else None
-    range_supported = False
-    try:
-        with requests.get(
-            cdn_url,
-            headers={"User-Agent": "Mozilla/5.0", "Range": "bytes=0-10"},
-            proxies=proxies,
-            timeout=5.0,
-            verify=False,
-            stream=True
-        ) as r_test:
-            range_supported = (r_test.status_code == 206)
-    except Exception:
-        pass
-
-    download_success = False
-    curl_bin = shutil.which("curl.exe") or shutil.which("curl")
-    if curl_bin:
-        cmd = [
-            curl_bin,
-            "-g",
-            "-k",
-            "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "--retry", "5",
-            "--retry-delay", "3",
-            "-o", str(target_file),
-            cdn_url
-        ]
-        if proxy_server:
-            cmd.extend(["-x", proxy_server])
-        if quiet:
-            cmd.append("-s")
-        if range_supported:
-            cmd.extend(["-C", "-"])
-
-        if not quiet:
-            print(f"[*] 启动单流下载引擎 -> {target_file.name}...", flush=True)
-
-        t0 = time.time()
-        try:
-            res = subprocess.run(cmd)
-            elapsed = round(time.time() - t0, 1)
-            if res.returncode == 0 and target_file.exists() and target_file.stat().st_size > 0:
-                download_success = True
-                if not quiet:
-                    print(f"[+] 下载完成！耗时: {elapsed} 秒", flush=True)
-            else:
-                print(f"[-] 系统 curl 退出码: {res.returncode}，自动无缝切入内置流式引擎重试...", flush=True)
-        except Exception as e:
-            print(f"[-] 调用 curl 异常 ({e})，切入内置流式引擎重试...", flush=True)
-
-    if not download_success:
-        if not quiet:
-            print("[*] 正在通过内置流式引擎下载...", flush=True)
-        if target_file.exists() and not range_supported:
+        raise RuntimeError("无法获取下载地址")
+    destination_dir = output_dir or CONFIG.get("default_download_dir")
+    result = download(
+        cdn_url,
+        destination_dir,
+        name=custom_filename,
+        md5=md5,
+        proxy=detect_proxy(),
+        progress=(lambda done, total, rate, remaining: print(
+            f"[*] 已下载 {done / 1048576:.1f} MB"
+            + (f" / {total / 1048576:.1f} MB" if total else "")
+            + f"，当前 {rate / 1024:.0f} KB/s"
+            + format_remaining(remaining),
+            file=sys.stderr, flush=True
+        )) if not quiet else None,
+    )
+    if result.lower().endswith(".djvu") and CONFIG.get("auto_convert_djvu", True):
+        tool = find_djvu_tool()
+        if tool:
+            from .downloader import validate_document
+            source = Path(result)
+            converted = source.with_suffix(".pdf")
+            temporary = converted.with_name(converted.name + ".part")
             try:
-                target_file.unlink()
-            except Exception:
-                pass
+                subprocess.run([tool, "-format=pdf", str(source), str(temporary)], check=True)
+                validate_document(temporary, file_type=".pdf")
+                os.replace(temporary, converted)
+                result = str(converted)
+            except Exception as exc:
+                temporary.unlink(missing_ok=True)
+                log_info(f"[!] DjVu 转 PDF 失败，保留原文件: {exc}")
+    if not quiet:
+        print(f"[+] 下载并验证完成: {result}", flush=True)
+    return result
 
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
-        try:
-            with requests.get(cdn_url, headers=headers, stream=True, proxies=proxies, timeout=(15, 60), verify=False) as r:
-                if r.status_code not in (200, 206):
-                    print(f"[-] 服务器返回异常状态码: HTTP {r.status_code}", flush=True)
-                    return False
-                with open(target_file, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=512 * 1024):
-                        if chunk:
-                            f.write(chunk)
-            if target_file.exists() and target_file.stat().st_size > 0:
-                download_success = True
-        except Exception as e:
-            print(f"[-] 内置流式引擎下载失败: {e}", flush=True)
-            return False
-
-    if not download_success or not target_file.exists():
-        return False
-
-    # True DjVu to PDF Transcoding implementation with exception safety
-    if target_file.suffix.lower() == ".djvu" and CONFIG.get("auto_convert_djvu", True):
-        djvu_tool = find_djvu_tool()
-        if djvu_tool:
-            pdf_target = target_file.with_suffix(".pdf")
-            if not quiet:
-                print(f"[*] 正在调用 ddjvu 进行高质量转码 -> {pdf_target.name} ...", flush=True)
-            try:
-                conv_res = subprocess.run(
-                    [djvu_tool, "-format=pdf", str(target_file), str(pdf_target)],
-                    capture_output=True,
-                    text=True
-                )
-                if conv_res.returncode == 0 and pdf_target.exists() and pdf_target.stat().st_size > 0:
-                    if not quiet:
-                        print(f"[+] DjVu 转码 PDF 成功！已生成: {pdf_target.name}", flush=True)
-                    target_file = pdf_target
-                else:
-                    if pdf_target.exists() and pdf_target.stat().st_size == 0:
-                        try:
-                            pdf_target.unlink()
-                        except Exception:
-                            pass
-                    print(f"[!] ddjvu 转码未完成 (代码 {conv_res.returncode})，保留原始 .djvu 格式交付。", flush=True)
-            except Exception as e:
-                print(f"[!] 调用 ddjvu 异常 ({e})，保留原始 .djvu 格式交付。", flush=True)
-        else:
-            if not quiet:
-                print(f"[!] 提示: 未检测到 ddjvu 工具，保留原始 .djvu 格式交付。", flush=True)
-
-    size_mb = round(target_file.stat().st_size / (1024 * 1024), 2)
-    if target_file.suffix.lower() == ".pdf":
-        try:
-            import fitz
-            doc = fitz.open(str(target_file))
-            pages = len(doc)
-            doc.close()
-            print(f"🎉 校验成功: 《{target_file.name}》完整落盘 (体积: {size_mb} MB，共 {pages} 页)！", flush=True)
-            return str(target_file)
-        except Exception as e:
-            print(f"[-] PDF 开卷核验提示: {e}", flush=True)
-            return str(target_file)
-    else:
-        print(f"🎉 校验成功: 《{target_file.name}》完整落盘 (体积: {size_mb} MB)！", flush=True)
-        return str(target_file)
 
 def main():
     parser = argparse.ArgumentParser(description="安娜书渡 / Anna's Archive Ferry 核心引擎")
@@ -755,11 +627,11 @@ def main():
     s_parser.add_argument("--limit", type=int, default=10, help="返回条数限制")
     s_parser.add_argument("--json", action="store_true", help="以 JSON 格式输出")
 
-    p_parser = subparsers.add_parser("probe", help="前置嗅探书籍体积与挂机耗时")
+    p_parser = subparsers.add_parser("probe", help="探测书籍体积与下载条件")
     p_parser.add_argument("--md5", required=True, help="书籍 MD5 码")
     p_parser.add_argument("--json", action="store_true", help="以 JSON 格式输出")
 
-    d_parser = subparsers.add_parser("download", help="下载指定书籍（纯净单流下载与校验）")
+    d_parser = subparsers.add_parser("download", help="下载并校验指定书籍")
     d_parser.add_argument("--md5", help="书籍 MD5 码")
     d_parser.add_argument("--direct-url", help="直接传入已知直链")
     d_parser.add_argument("--output", help="自定义保存目录")
@@ -768,22 +640,40 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "doctor":
-        run_doctor(fix=args.fix)
-    elif args.command == "search":
-        search_books(args.query, ext=args.ext, limit=args.limit, as_json=args.json)
-    elif args.command == "probe":
-        probe_book(args.md5, as_json=args.json)
-    elif args.command == "download":
-        download_book(
-            md5=args.md5,
-            direct_url=args.direct_url,
-            output_dir=args.output,
-            custom_filename=args.name,
-            quiet=args.quiet
-        )
-    else:
-        run_doctor()
+    try:
+        if args.command == "doctor":
+            run_doctor(fix=args.fix)
+        elif args.command == "search":
+            if args.json:
+                with redirect_stdout(sys.stderr):
+                    result = search_books(args.query, ext=args.ext, limit=args.limit, as_json=True)
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                search_books(args.query, ext=args.ext, limit=args.limit)
+        elif args.command == "probe":
+            if args.json:
+                with redirect_stdout(sys.stderr):
+                    result = probe_book(args.md5, as_json=True)
+                if result is not None:
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                result = probe_book(args.md5)
+            if result is None:
+                return 1
+        elif args.command == "download":
+            download_book(
+                md5=args.md5,
+                direct_url=args.direct_url,
+                output_dir=args.output,
+                custom_filename=args.name,
+                quiet=args.quiet
+            )
+        else:
+            parser.print_help()
+    except (ValueError, RuntimeError, OSError, requests.exceptions.RequestException) as exc:
+        print(f"[-] {exc}", file=sys.stderr)
+        return 1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

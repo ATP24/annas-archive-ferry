@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test-and-lint:
-    name: Test & Lint (${{ matrix.os }} - Python ${{ matrix.python-version }})
+  test:
+    name: Tests (${{ matrix.os }} - Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -28,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install -e .
 
       - name: Validate Python syntax & compilation
         run: |
-          python -m py_compile scripts/ferry_engine.py annas_archive_ferry/__init__.py annas_archive_ferry/config.py annas_archive_ferry/engine.py
+          python -m compileall -q scripts annas_archive_ferry tests
 
       - name: Verify Full Module Imports (Catch Missing Dependencies)
         run: |
@@ -45,7 +45,8 @@ jobs:
           python scripts/ferry_engine.py probe --help
           python scripts/ferry_engine.py download --help
 
-      - name: Test Standard Package Installation (PEP 517/621)
-        run: |
-          pip install -e .
-          annas-ferry --help
+      - name: Test installed command
+        run: annas-ferry --help
+
+      - name: Test download validation and resume
+        run: python -m unittest discover -s tests -v

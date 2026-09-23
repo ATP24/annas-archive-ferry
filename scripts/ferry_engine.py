@@ -19,4 +19,4 @@ if str(PROJECT_ROOT) not in sys.path:
 from annas_archive_ferry.engine import main
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
