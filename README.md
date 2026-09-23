@@ -56,8 +56,8 @@ annas-ferry doctor
 
 ```bash
 annas-ferry search "Pride and Prejudice Jane Austen" --ext epub --limit 5 --json
-annas-ferry probe --md5 <MD5> --json
-annas-ferry download --md5 <MD5> --output "./downloads"
+annas-ferry probe --md5 YOUR_32_CHARACTER_MD5 --json
+annas-ferry download --md5 YOUR_32_CHARACTER_MD5 --output "./downloads"
 ```
 
 `--json` 的标准输出只包含 JSON；进度与诊断信息写入标准错误输出，便于 Agent 或程序解析。所有参数见 [CLI 参考](docs/cli.md)。

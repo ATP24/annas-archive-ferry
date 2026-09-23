@@ -56,8 +56,8 @@ Choose a record, then replace `<MD5>` with its **complete 32-character MD5**:
 
 ```bash
 annas-ferry search "Pride and Prejudice Jane Austen" --ext epub --limit 5 --json
-annas-ferry probe --md5 <MD5> --json
-annas-ferry download --md5 <MD5> --output "./downloads"
+annas-ferry probe --md5 YOUR_32_CHARACTER_MD5 --json
+annas-ferry download --md5 YOUR_32_CHARACTER_MD5 --output "./downloads"
 ```
 
 With `--json`, stdout contains only JSON; progress and diagnostic messages go to stderr. See the [CLI reference](docs/cli.en.md) for all options.
