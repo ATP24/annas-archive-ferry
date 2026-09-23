@@ -21,7 +21,7 @@
 - 默认保存目录：`~/Downloads/AnnasFerry`。可用 `--output` 覆盖。
 - 未完成传输保存在 `<文件名>.part`；`<文件名>.part.meta` 保存续传身份信息。不要把 `.part` 当作成品。
 - 成功后，工具验证传输长度与书目 MD5；PDF 还会检查是否能打开。通过后才改名为最终文件。
-- DjVu 转 PDF 需要系统安装 `ddjvu`。转换失败时保留原 DjVu。
+- DjVu 转 PDF 默认开启（`auto_convert_djvu: true`），需要系统能找到 DjVuLibre 的 `ddjvu`。转换后会检查 PDF 能否打开，并保留原 DjVu；缺少工具或转换失败时交付原 DjVu。此过程不保证无损或保留可搜索文本层。
 
 ## 配置 / Configuration
 

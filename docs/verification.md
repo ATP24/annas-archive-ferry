@@ -17,6 +17,8 @@
 
 本地自动测试使用模拟 HTTP 响应覆盖有效下载、截断、MD5 不符、断点续传、资源身份变化及 JSON 输出。运行：
 
+DjVu 转 PDF 另以本机 DjVuLibre 工具和合成的 1 页 DjVu 做了实际转换检查：生成的 PDF 可打开且包含 1 页，原始 DjVu 保留。此项不代表所有 DjVu 文件或文字层都能无损转换。
+
 ```bash
 python -m unittest discover -s tests -v
 ```

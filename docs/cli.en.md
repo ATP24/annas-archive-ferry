@@ -14,7 +14,7 @@ Run commands in an active Python 3.9+ environment. `annas-ferry` is installed by
 
 ## Local files
 
-The default output directory is `~/Downloads/AnnasFerry`; override it with `--output`. Incomplete transfers use `<name>.part` and `<name>.part.meta`. Do not treat `.part` as a final file. Successful downloads validate transfer length and catalog MD5, and PDFs are checked for readable pages. DjVu-to-PDF conversion needs `ddjvu`; if conversion fails, the original DjVu remains.
+The default output directory is `~/Downloads/AnnasFerry`; override it with `--output`. Incomplete transfers use `<name>.part` and `<name>.part.meta`. Do not treat `.part` as a final file. Successful downloads validate transfer length and catalog MD5, and PDFs are checked for readable pages. DjVu-to-PDF conversion is enabled by default (`auto_convert_djvu: true`) and needs DjVuLibre's `ddjvu`. The generated PDF is opened for validation, while the original DjVu remains. Missing tools or conversion failures return the DjVu. Lossless conversion and searchable-text preservation are not guaranteed.
 
 ## Configuration
 

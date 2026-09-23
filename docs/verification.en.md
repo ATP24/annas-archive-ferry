@@ -17,6 +17,8 @@ One download took about 25 seconds. Speed varies by mirror, route, proxy, and ne
 
 Offline tests use simulated responses to cover length mismatch, MD5 mismatch, byte ranges, partial-file identity, and JSON output:
 
+DjVu-to-PDF conversion was also checked locally using DjVuLibre and a synthetic one-page DjVu. The resulting PDF opened with one page, and the original DjVu remained. This does not establish lossless conversion or text-layer preservation for arbitrary files.
+
 ```bash
 python -m unittest discover -s tests -v
 ```

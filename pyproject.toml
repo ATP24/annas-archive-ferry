@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "annas-archive-ferry"
 version = "1.1.0"
-description = "Agent skill and CLI for searching Anna's Archive and verifying local downloads"
+description = "Agent skill and CLI for Anna's Archive search, verified downloads, and DjVu-to-PDF conversion"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -17,6 +17,7 @@ keywords = [
     "shadow-library",
     "book-search",
     "pdf-downloader",
+    "djvu-to-pdf",
     "agent-skill",
     "ddddocr",
     "antigravity-skill"
