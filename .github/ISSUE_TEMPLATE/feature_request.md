@@ -1,19 +1,18 @@
 ---
-name: Feature Request
-about: Suggest an idea or enhancement for Anna's Archive Ferry
-title: '[FEAT] '
+name: Feature request / 功能建议
+about: Suggest a focused improvement to the skill, CLI, or documentation
+title: "[Feature] "
 labels: enhancement
-assignees: ''
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem or limitation is.
+## User problem / 用户问题
 
-**Describe the Solution You'd Like**
-A clear and concise description of what you want to happen.
+What are you trying to do, and where does the current workflow stop?
 
-**Describe Alternatives You've Considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## Proposed behavior / 期望行为
 
-**Additional Context**
-Add any other context, mockups, or screenshots about the feature request here.
+Describe the smallest useful change and an example of how you would use it.
+
+## Alternatives / 其他办法
+
+What have you tried? Mention any tradeoffs or compatibility concerns.

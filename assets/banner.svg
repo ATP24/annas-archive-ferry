@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+  <title id="title">Anna's Archive Ferry</title>
+  <desc id="desc">A dark blue banner showing a document crossing three checkpoints: search, inspect, verify.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0b1725"/><stop offset="1" stop-color="#12283b"/></linearGradient>
+    <linearGradient id="accent" x2="1"><stop stop-color="#5de0cc"/><stop offset="1" stop-color="#87b8ff"/></linearGradient>
+  </defs>
+  <rect width="1200" height="340" rx="24" fill="url(#bg)"/>
+  <path d="M0 260 Q180 225 360 260 T720 260 T1200 260" fill="none" stroke="#244963" stroke-width="2"/>
+  <path d="M0 285 Q180 250 360 285 T720 285 T1200 285" fill="none" stroke="#244963" stroke-width="2"/>
+  <g transform="translate(70 63)">
+    <rect x="0" y="12" width="164" height="192" rx="13" fill="#193448" stroke="#5de0cc" stroke-width="3"/>
+    <path d="M22 44 H133 M22 70 H120 M22 96 H137 M22 122 H104" stroke="#7db6c5" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="128" cy="164" r="25" fill="#5de0cc"/>
+    <path d="m116 164 9 9 17-19" fill="none" stroke="#0b1725" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="290" y="125" fill="#eef6fb" font-family="Segoe UI,Arial,sans-serif" font-size="54" font-weight="700">Anna's Archive Ferry</text>
+  <text x="292" y="177" fill="#9dc1d2" font-family="Segoe UI,Arial,sans-serif" font-size="24">Search records. Inspect files. Verify downloads.</text>
+  <g font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="600">
+    <rect x="291" y="218" width="122" height="43" rx="20" fill="#193f4d"/><text x="317" y="246" fill="#5de0cc">SEARCH</text>
+    <path d="M430 240 h32" stroke="url(#accent)" stroke-width="2"/>
+    <rect x="478" y="218" width="126" height="43" rx="20" fill="#193f4d"/><text x="504" y="246" fill="#5de0cc">INSPECT</text>
+    <path d="M621 240 h32" stroke="url(#accent)" stroke-width="2"/>
+    <rect x="669" y="218" width="115" height="43" rx="20" fill="#193f4d"/><text x="693" y="246" fill="#5de0cc">VERIFY</text>
+  </g>
+  <circle cx="1102" cy="76" r="4" fill="#5de0cc"/><circle cx="1132" cy="76" r="4" fill="#527b92"/><circle cx="1162" cy="76" r="4" fill="#527b92"/>
+</svg>

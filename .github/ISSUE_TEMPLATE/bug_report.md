@@ -1,29 +1,31 @@
 ---
-name: Bug Report
-about: Create a report to help us improve Anna's Archive Ferry
-title: '[BUG] '
+name: Bug report / 问题报告
+about: Report a reproducible search, probe, download, or installation failure
+title: "[Bug] "
 labels: bug
-assignees: ''
 ---
 
-**Describe the Bug**
-A clear and concise description of what the bug is.
+## What happened / 问题现象
 
-**CLI Command / Python Call Used**
-```bash
-python scripts/ferry_engine.py ...
-```
+Describe the result you saw and what you expected.
 
-**Output Log / Error Traceback**
-```text
-(Paste relevant output here. Remember not to post private API tokens or credentials)
-```
+## Reproduction / 复现步骤
 
-**Environment Information**
-- OS: [e.g. Windows 11, macOS Sonoma, Ubuntu 22.04]
-- Python Version: [e.g. 3.10.8]
-- Browser: [e.g. Chrome, Edge, Playwright Chromium]
-- Proxy Used: [e.g. Clash 7890, None]
+1. Command or agent request:
+2. Steps:
+3. Exit code and relevant error:
 
-**Additional Context**
-Add any other context about the problem here.
+## Environment / 环境
+
+- OS:
+- Python version:
+- Browser:
+- Proxy enabled (yes/no; do not post credentials):
+- Project commit or version:
+
+## Checks already tried / 已尝试的检查
+
+- [ ] `annas-ferry doctor`
+- [ ] [Troubleshooting guide](https://github.com/ATP24/annas-archive-ferry/blob/main/docs/troubleshooting.en.md)
+
+**Before posting:** remove signed download URLs, credentials, private paths, and copyrighted file contents. For a security issue, see [SECURITY.md](https://github.com/ATP24/annas-archive-ferry/blob/main/SECURITY.md).
